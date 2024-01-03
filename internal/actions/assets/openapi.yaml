@@ -14,29 +14,25 @@ info:
 servers:
   - url: 'https://douyin-example.dingtalk.com'
 paths:
-  '/profile/{unionId}':
+  /userInfo/{unionId}:
     get:
-      operationId: getProfile
-      summary: 查看个人信息
-      description: 获取我的个人信息，也即用户的 Profile
-      x-dingtalk-examples:
-        - input: 我是谁
-          output:
-            unionId: me
+      description: 查询用户信息
+      summary: 查询用户信息
+      operationId: GetUserInfo
       parameters:
-        - in: path
-          name: unionId
+        - name: unionId
+          in: path
+          description: 用户唯一ID
+          required: true
           schema:
             type: string
-          required: true
-          description: 用户的 UnionId，默认值为 me
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetProfile'
+                $ref: '#/components/schemas/GetUserInfoResponse'
   '/calendars':
     get:
       operationId: getCalendars
@@ -61,30 +57,21 @@ paths:
                 $ref: '#/components/schemas/GetCalendarEvents'
 components:
   schemas:
-    GetProfile:
+    GetUserInfoResponse:
       type: object
       properties:
-        nick:
-          type: string
-          description: 钉钉的用户昵称
         avatarUrl:
           type: string
           description: 用户的头像 URL，可以在 Markdown 中以图片形式展示
-        mobile:
+        nick:
           type: string
-          description: 用户的手机号
+          description: 用户昵称
         openId:
           type: string
-          description: 钉钉开放平台用户ID
+          description: 用户在当前应用的唯一标识
         unionId:
           type: string
-          description: 钉钉开放平台唯一的用户ID，优先使用unionId唯一标识用户
-        email:
-          type: string
-          description: 用户的邮箱
-        stateCode:
-          type: string
-          description: 手机号对应的国家号，例如中国是86，美国和加拿大是1
+          description: 用户在当前开发者账号下的唯一标识（未绑定开发者账号没有该字段）
     GetCalendars:
       type: array
       items:

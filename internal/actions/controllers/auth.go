@@ -153,7 +153,7 @@ func (h *AuthController) Token(c *gin.Context) {
 			getTokenResponse.ExpireIn = int(respData["expires_in"].(float64))
 			c.JSON(http.StatusOK, getTokenResponse)
 		} else {
-			getTokenError := &models.GetTokenError{}
+			getTokenError := &models.DouYinError{}
 			getTokenError.ErrorCode = errorCode
 			getTokenError.ErrorDescription = respData["description"].(string)
 			c.JSON(http.StatusBadRequest, getTokenError)

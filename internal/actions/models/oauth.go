@@ -26,7 +26,7 @@ type GetTokenResponse struct {
 	ExpireIn     int    `json:"expires_in"`
 }
 
-type GetTokenError struct {
+type DouYinError struct {
 	ErrorCode        float64 `json:"error_code"`
 	ErrorDescription string  `json:"error_description"`
 }
