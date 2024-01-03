@@ -210,7 +210,8 @@ func generateGetVideoListUrl(accessToken string, cursor int, count int) string {
 
 	// 创建一个URL值对象，用于添加query参数
 	parameters := url.Values{}
-	parameters.Add("open_id", getOpenID(accessToken))
+	openId, _ := getOpenID(accessToken)
+	parameters.Add("open_id", openId)
 	parameters.Add("cursor", strconv.Itoa(cursor))
 	parameters.Add("count", strconv.Itoa(count))
 
