@@ -21,3 +21,5 @@
 go.work
 
 /.idea
+/build.sh
+/douyin-example
