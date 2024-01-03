@@ -24,6 +24,7 @@ type GetTokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpireIn     int    `json:"expires_in"`
+	OpenID       string `json:"open_id"`
 }
 
 type DouYinError struct {
