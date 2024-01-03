@@ -3,6 +3,7 @@ package controllers
 import (
 	"douyin-action-example/internal/actions/models"
 	"douyin-action-example/internal/conf"
+	"encoding/json"
 	"fmt"
 	"github.com/chzealot/gobase/logger"
 	"github.com/chzealot/gobase/utils"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"sync"
 )
+
+const getTokenUrl string = "https://open.douyin.com/oauth/access_token"
 
 type AuthController struct {
 	mu sync.Mutex
@@ -56,7 +59,7 @@ func (h *AuthController) Callback(c *gin.Context) {
 	if conf.IsDebugMode {
 		utils.DumpHttpRequest(c.Request)
 	}
-	authCode := c.Query("authCode")
+	code := c.Query("code")
 	state := c.Query("state")
 	oac, err := models.NewOAuthCallbackFromJson(state)
 	if err != nil {
@@ -66,54 +69,42 @@ func (h *AuthController) Callback(c *gin.Context) {
 
 	backUrl := fmt.Sprintf("%s?code=%s&state=%s",
 		oac.RedirectUri,
-		url.QueryEscape(authCode),
+		url.QueryEscape(code),
 		url.QueryEscape(oac.State))
 	logger.Infof("redirect to %s", backUrl)
 	c.Redirect(http.StatusFound, backUrl)
 }
 
 func (h *AuthController) Token(c *gin.Context) {
-	//f := &TokenRequestForm{}
-	//if err := c.ShouldBind(f); err != nil {
-	//	c.Error(err)
-	//	return
-	//}
-	//if len(f.ClientID) == 0 {
-	//	auth := strings.SplitN(c.GetHeader("Authorization"), " ", 2)
-	//	if len(auth) != 2 || auth[0] != "Basic" {
-	//		c.Error(errors.New("invalid Authorization"))
-	//		return
-	//	}
-	//	payload, _ := base64.StdEncoding.DecodeString(auth[1])
-	//	pair := strings.SplitN(string(payload), ":", 2)
-	//	if len(pair) != 2 {
-	//		c.Error(errors.New("invalid Authorization"))
-	//		return
-	//	}
-	//	f.ClientID = pair[0]
-	//	f.ClientSecret = pair[1]
-	//}
-	//
-	//if conf.IsDebugMode {
-	//	utils.DumpHttpRequest(c.Request)
-	//}
-	//logger.Infof("token request, path=%s, grantType=%s", c.Request.URL.String(), f.GrantType)
-	//
-	//client, ok := h.GetDingTalkClient(f.ClientID)
-	//if !ok {
-	//	client = dingtalk.NewDingTalkClient(f.ClientID, f.ClientSecret)
-	//	h.SaveDingTalkClient(f.ClientID, client)
-	//}
-	//
-	//token, err := client.GetUserAccessToken(f.Code)
-	//if err != nil {
-	//	c.Error(err)
-	//	return
-	//}
-	//resp := make(map[string]any)
-	//resp["access_token"] = token.AccessToken
-	//resp["token_type"] = "bearer"
-	//resp["refresh_token"] = token.RefreshToken
-	//resp["expires_in"] = token.ExpireIn
-	//c.JSON(http.StatusOK, resp)
+	douYinClient, err := NewDouYinClient()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	// Declare a new Person struct.
+	var tokenRequest models.GetTokenRequest
+
+	// Try to decode the request body into the struct. If there is an error,
+	// respond to the client with the error message and a 400 status code.
+	err = json.NewDecoder(c.Request.Body).Decode(&tokenRequest)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	fmt.Printf("tokenRequest: %+v\n", tokenRequest)
+
+	getTokenResponse := &models.GetTokenResponse{}
+	if err := douYinClient.Post(c, getTokenUrl, tokenRequest, getTokenResponse); err != nil {
+		c.Error(err)
+		return
+	}
+
+	resp := make(map[string]any)
+	resp["access_token"] = getTokenResponse.AccessToken
+	resp["token_type"] = "bearer"
+	resp["refresh_token"] = getTokenResponse.RefreshToken
+	resp["expires_in"] = getTokenResponse.ExpireIn
+	c.JSON(http.StatusOK, resp)
 }
