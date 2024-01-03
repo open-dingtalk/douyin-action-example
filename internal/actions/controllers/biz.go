@@ -166,18 +166,21 @@ func (bc *BizController) GetVideoList(c *gin.Context) {
 					c.JSON(http.StatusInternalServerError, err)
 					return
 				}
-				videoItem := &models.VideoItem{}
-				videoItem.Title = video["title"].(string)
 
-				statistics := video["statistics"].(map[string]interface{})
-				videoItem.DiggCount = int64(statistics["digg_count"].(float64))
-				videoItem.DownloadCount = int64(statistics["download_count"].(float64))
-				videoItem.ShareCount = int64(statistics["share_count"].(float64))
-				videoItem.ForwardCount = int64(statistics["forward_count"].(float64))
-				videoItem.PlayCount = int64(statistics["play_count"].(float64))
-
-				getVideoListResponse.Videos = append(getVideoListResponse.Videos, videoItem)
+				title := video["title"].(string)
+				if title != "" {
+					videoItem := &models.VideoItem{}
+					videoItem.Title = title
+					statistics := video["statistics"].(map[string]interface{})
+					videoItem.DiggCount = int64(statistics["digg_count"].(float64))
+					videoItem.DownloadCount = int64(statistics["download_count"].(float64))
+					videoItem.ShareCount = int64(statistics["share_count"].(float64))
+					videoItem.ForwardCount = int64(statistics["forward_count"].(float64))
+					videoItem.PlayCount = int64(statistics["play_count"].(float64))
+					getVideoListResponse.Videos = append(getVideoListResponse.Videos, videoItem)
+				}
 			}
+
 			debugInfo, _ := json.Marshal(getVideoListResponse)
 			logger.Infof("status ok, response=%+v", debugInfo)
 			c.JSON(http.StatusOK, getVideoListResponse)
