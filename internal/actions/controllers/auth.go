@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"douyin-action-example/internal/actions/models"
+	"douyin-action-example/internal/actions/storage"
 	"douyin-action-example/internal/conf"
 	"encoding/json"
 	"fmt"
@@ -47,7 +48,7 @@ func NewAuthController() *AuthController {
 	}
 }
 
-func (h AuthController) Authorize(c *gin.Context) {
+func (h *AuthController) Authorize(c *gin.Context) {
 	if conf.IsDebugMode {
 		utils.DumpHttpRequest(c.Request)
 	}
@@ -151,6 +152,8 @@ func (h *AuthController) Token(c *gin.Context) {
 			getTokenResponse.AccessToken = respData["access_token"].(string)
 			getTokenResponse.RefreshToken = respData["refresh_token"].(string)
 			getTokenResponse.ExpireIn = int(respData["expires_in"].(float64))
+			getTokenResponse.OpenID = respData["open_id"].(string)
+			storage.OpenIdService.Save(getTokenResponse.AccessToken, getTokenResponse.OpenID)
 			c.JSON(http.StatusOK, getTokenResponse)
 		} else {
 			getTokenError := &models.DouYinError{}

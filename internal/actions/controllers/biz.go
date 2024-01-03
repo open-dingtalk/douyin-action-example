@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"douyin-action-example/internal/actions/models"
+	"douyin-action-example/internal/actions/storage"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"io"
@@ -41,7 +42,11 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 	getUserInfoRequest := &models.GetUserInfoRequest{}
 	accessToken := getBearerToken(c.Request)
 	getUserInfoRequest.AccessToken = accessToken
-	getUserInfoRequest.OpenID = getOpenID(accessToken)
+	getUserInfoRequest.OpenID, err = getOpenID(accessToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
 
 	jsonData, err := json.Marshal(getUserInfoRequest)
 	if err != nil {
@@ -192,8 +197,8 @@ func getBearerToken(r *http.Request) string {
 	return parts[1]
 }
 
-func getOpenID(accessToken string) string {
-	return "_000mWp_xZXvu3GStyvGh3QV4q3gM4dK8DPw"
+func getOpenID(accessToken string) (string, error) {
+	return storage.OpenIdService.GetOpenIdByAccessToken(accessToken)
 }
 
 func generateGetVideoListUrl(accessToken string, cursor int, count int) string {
