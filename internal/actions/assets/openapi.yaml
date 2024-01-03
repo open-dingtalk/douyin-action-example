@@ -25,6 +25,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetUserInfoResponse'
+  /videoList:
+    get:
+      summary: 查看视频列表
+      description: 查看视频列表
+      operationId: GetVideoListResponse
+      parameters:
+        - name: openId
+          in: query
+          description: 用户ID
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetVideoListResponse'
 components:
   schemas:
     GetUserInfoResponse:
@@ -42,3 +61,32 @@ components:
         unionId:
           type: string
           description: 用户在当前开发者账号下的唯一标识（未绑定开发者账号没有该字段）
+    GetVideoListResponse:
+      type: object
+      properties:
+        videos:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+                description: 视频标题
+              diggCount:
+                type: integer
+                description: 点赞数
+              downloadCount:
+                type: integer
+                description: 下载数
+              playCount:
+                type: integer
+                description: 播放数
+              shareCount:
+                type: integer
+                description: 分享数
+              forwardCount:
+                type: integer
+                description: 转发数
+              commentCount:
+                type: integer
+                description: 评论数
