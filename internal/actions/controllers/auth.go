@@ -22,12 +22,12 @@ import (
 
 const getTokenUrl string = "https://open.douyin.com/oauth/access_token/"
 
-type AuthController struct {
+type OAuthController struct {
 	mu         sync.Mutex
 	httpClient *http.Client
 }
 
-func NewAuthController() *AuthController {
+func NewAuthController() *OAuthController {
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -43,12 +43,12 @@ func NewAuthController() *AuthController {
 		},
 	}
 
-	return &AuthController{
+	return &OAuthController{
 		httpClient: httpClient,
 	}
 }
 
-func (h *AuthController) Authorize(c *gin.Context) {
+func (h *OAuthController) Authorize(c *gin.Context) {
 	if conf.IsDebugMode {
 		utils.DumpHttpRequest(c.Request)
 	}
@@ -59,7 +59,7 @@ func (h *AuthController) Authorize(c *gin.Context) {
 	scope = strings.ReplaceAll(scope, ",", " ")
 	scope = strings.ReplaceAll(scope, "|", " ")
 	scopes := strings.Split(scope, " ")
-	dingtalkScope := strings.Join(scopes, " ")
+	dingtalkScope := strings.Join(scopes, ",")
 	state := c.Query("state")
 
 	oac := &models.OAuthCallback{
@@ -73,13 +73,13 @@ func (h *AuthController) Authorize(c *gin.Context) {
 		return
 	}
 	thisRedirectUri := fmt.Sprintf("https://%s/auth/callback", c.Request.Host)
-	dingtalkUrl := fmt.Sprintf("https://login.dingtalk.com/oauth2/auth?redirect_uri=%s&response_type=code&client_id=%s&scope=%s&state=%s&prompt=%s",
-		url.QueryEscape(thisRedirectUri), url.QueryEscape(oac.ClientID), url.QueryEscape(dingtalkScope), url.QueryEscape(stateStr), "consent")
+	dingtalkUrl := fmt.Sprintf("https://open.douyin.com/platform/oauth/connect/?redirect_uri=%s&response_type=code&client_key=%s&scope=%s&state=%s&prompt=%s",
+		thisRedirectUri, url.QueryEscape(oac.ClientID), url.QueryEscape(dingtalkScope), url.QueryEscape(stateStr), "consent")
 	logger.Infof("redirect to %s", dingtalkUrl)
 	c.Redirect(http.StatusFound, dingtalkUrl)
 }
 
-func (h *AuthController) Callback(c *gin.Context) {
+func (h *OAuthController) Callback(c *gin.Context) {
 	if conf.IsDebugMode {
 		utils.DumpHttpRequest(c.Request)
 	}
@@ -99,7 +99,7 @@ func (h *AuthController) Callback(c *gin.Context) {
 	c.Redirect(http.StatusFound, backUrl)
 }
 
-func (h *AuthController) Token(c *gin.Context) {
+func (h *OAuthController) Token(c *gin.Context) {
 	var getTokenRequest models.GetTokenRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&getTokenRequest)
 	if err != nil {
@@ -113,12 +113,12 @@ func (h *AuthController) Token(c *gin.Context) {
 		Code:         getTokenRequest.Code,
 		GrantType:    getTokenRequest.GrantType,
 	}
-	jsonData, err := json.Marshal(douYinTokenRequest)
+	requestBody, err := json.Marshal(douYinTokenRequest)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
-	httpRequest, err := http.NewRequest("POST", getTokenUrl, bytes.NewBuffer(jsonData))
+	httpRequest, err := http.NewRequest("POST", getTokenUrl, bytes.NewBuffer(requestBody))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
@@ -131,7 +131,7 @@ func (h *AuthController) Token(c *gin.Context) {
 		return
 	}
 	defer httpResponse.Body.Close()
-	body, err := io.ReadAll(httpResponse.Body)
+	responseBody, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
@@ -139,7 +139,7 @@ func (h *AuthController) Token(c *gin.Context) {
 
 	douYinTokenResponse := make(map[string]interface{})
 	if httpResponse.StatusCode == http.StatusOK {
-		if err := json.Unmarshal(body, &douYinTokenResponse); err != nil {
+		if err := json.Unmarshal(responseBody, &douYinTokenResponse); err != nil {
 			c.JSON(http.StatusInternalServerError, err)
 			return
 		}
@@ -156,6 +156,7 @@ func (h *AuthController) Token(c *gin.Context) {
 			storage.OpenIdService.Save(getTokenResponse.AccessToken, getTokenResponse.OpenID)
 			c.JSON(http.StatusOK, getTokenResponse)
 		} else {
+			logger.Errorf("error response, request=%s, response=%s", string(responseBody))
 			getTokenError := &models.DouYinError{}
 			getTokenError.ErrorCode = errorCode
 			getTokenError.ErrorDescription = respData["description"].(string)

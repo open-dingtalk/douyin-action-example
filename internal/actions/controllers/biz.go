@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"douyin-action-example/internal/actions/models"
 	"douyin-action-example/internal/actions/storage"
+	"douyin-action-example/internal/conf"
 	"encoding/json"
+	"github.com/chzealot/gobase/logger"
+	"github.com/chzealot/gobase/utils"
 	"github.com/gin-gonic/gin"
 	"io"
 	"log"
@@ -35,8 +38,12 @@ func NewBizController() *BizController {
 func (bc *BizController) UserInfo(c *gin.Context) {
 	dyClient, err := NewDouYinClient()
 	if err != nil {
+		logger.Errorf("NewDouYinClient failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
+	}
+	if conf.IsDebugMode {
+		utils.DumpHttpRequest(c.Request)
 	}
 
 	getUserInfoRequest := &models.GetUserInfoRequest{}
@@ -44,17 +51,20 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 	getUserInfoRequest.AccessToken = accessToken
 	getUserInfoRequest.OpenID, err = getOpenID(accessToken)
 	if err != nil {
+		logger.Errorf("getOpenID failed, err=%s, accessToken=%s", err.Error(), accessToken)
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
 
 	jsonData, err := json.Marshal(getUserInfoRequest)
 	if err != nil {
+		logger.Errorf("json.Marshal(getUserInfoRequest) failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
 	httpRequest, err := http.NewRequest("POST", getUserInfoUrl, bytes.NewBuffer(jsonData))
 	if err != nil {
+		logger.Errorf("http.NewRequest failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
@@ -62,12 +72,14 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 
 	httpResponse, err := dyClient.httpClient.Do(httpRequest)
 	if err != nil {
+		logger.Errorf("dyClient.httpClient.Do failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
 	defer httpResponse.Body.Close()
 	body, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
+		logger.Errorf("io.ReadAll failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
@@ -75,6 +87,7 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 	douYinTokenResponse := make(map[string]interface{})
 	if httpResponse.StatusCode == http.StatusOK {
 		if err := json.Unmarshal(body, &douYinTokenResponse); err != nil {
+			logger.Errorf("json.Unmarshal failed, err=%s", err.Error())
 			c.JSON(http.StatusInternalServerError, err)
 			return
 		}
@@ -87,15 +100,17 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 			getUserInfoResponse.Nick = respData["nickname"].(string)
 			getUserInfoResponse.OpenID = respData["open_id"].(string)
 			getUserInfoResponse.UnionID = respData["union_id"].(string)
+			logger.Infof("get user info: %+v", getUserInfoResponse)
 			c.JSON(http.StatusOK, getUserInfoResponse)
+			return
 		} else {
 			getTokenError := &models.DouYinError{}
 			getTokenError.ErrorCode = errorCode
 			getTokenError.ErrorDescription = respData["description"].(string)
 			c.JSON(http.StatusBadRequest, getTokenError)
 		}
-
 	} else {
+		logger.Errorf("httpResponse.StatusCode not ok")
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}

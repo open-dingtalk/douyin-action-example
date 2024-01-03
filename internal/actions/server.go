@@ -30,7 +30,7 @@ func (s *HttpServer) Run(address string) error {
 	r.GET("/auth/callback", ac.Callback)
 
 	bc := controllers.NewBizController()
-	r.POST("/userInfo", bc.UserInfo)
+	r.GET("/userInfo", bc.UserInfo)
 	r.GET("/videoList", bc.GetVideoList)
 	r.GET("/videoBase", bc.GetVideoBase)
 
