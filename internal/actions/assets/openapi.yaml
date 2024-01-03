@@ -1,0 +1,353 @@
+openapi: 3.0.1
+x-dingtalk-keywords:
+  - 待办
+  - 完成
+  - 任务
+  - 获取
+  - 个人信息
+  - 日程
+  - 日历
+info:
+  title: 钉钉日程服务
+  description: 创建日程、查询日程、删除日程、管理日程、获取我的个人信息
+  version: 1.0.0
+servers:
+  - url: 'https://douyin-example.dingtalk.com'
+paths:
+  '/profile/{unionId}':
+    get:
+      operationId: getProfile
+      summary: 查看个人信息
+      description: 获取我的个人信息，也即用户的 Profile
+      x-dingtalk-examples:
+        - input: 我是谁
+          output:
+            unionId: me
+      parameters:
+        - in: path
+          name: unionId
+          schema:
+            type: string
+          required: true
+          description: 用户的 UnionId，默认值为 me
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetProfile'
+  '/calendars':
+    get:
+      operationId: getCalendars
+      summary: 获取我的日历列表
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetCalendars'
+  '/calendar/events':
+    get:
+      operationId: getCalendarEvent
+      summary: 获取我的日程列表
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetCalendarEvents'
+components:
+  schemas:
+    GetProfile:
+      type: object
+      properties:
+        nick:
+          type: string
+          description: 钉钉的用户昵称
+        avatarUrl:
+          type: string
+          description: 用户的头像 URL，可以在 Markdown 中以图片形式展示
+        mobile:
+          type: string
+          description: 用户的手机号
+        openId:
+          type: string
+          description: 钉钉开放平台用户ID
+        unionId:
+          type: string
+          description: 钉钉开放平台唯一的用户ID，优先使用unionId唯一标识用户
+        email:
+          type: string
+          description: 用户的邮箱
+        stateCode:
+          type: string
+          description: 手机号对应的国家号，例如中国是86，美国和加拿大是1
+    GetCalendars:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+            description: 日历ID
+          summary:
+            type: string
+            description: 日历标题
+          description:
+            type: string
+            description: 日历描述
+          timeZone:
+            type: string
+            description: 时区名称，使用IANA Time Zone Database标准，例如：Asia/Shanghai
+          eTag:
+            type: string
+            description: 日程资源的eTag，用于检测该日程以及内部的Event是否有被更新
+          type:
+            type: string
+            description: 日历类型, unknown：未知类型;primary：用户或应用的主日;subscribed：由用户或应用创建的订阅日历（无参与人）;shared：由用户或应用创建的普通共享日历
+          privilege:
+            type: string
+            description: 权限信息, free_busy_reader：查看闲忙;title_reader：查看标题;reader：查看详情;writer：可编辑;owner：可管理和可设置共享关系
+    GetCalendarEvents:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+            description: 日程ID
+          summary:
+            type: string
+            description: 日程标题
+          description:
+            type: string
+            description: 日程描述
+          start:
+            type: object
+            description: 日程开始时间
+            properties:
+              date:
+                type: string
+                description: 日程开始日期，格式：yyyy-MM-dd
+              dateTime:
+                type: string
+                description: 日程开始时间，格式为ISO-8601的date-time格式
+              timeZone:
+                type: string
+                description: 日程开始时间所属时区，tz database name格式
+          originStart:
+            type: object
+            description: 表示循环序列中最初创建时的开始时间
+            properties:
+              dateTime:
+                type: string
+                description: 其日期和时间信息以ISO 8601格式表示，并且始终采用 UTC。例如：2023年1月1日午夜 UTC 为 2023-01-01T00:00:00Z
+          end:
+            type: object
+            description: 日程结束时间
+            properties:
+              date:
+                type: string
+                description: 日程结束日期，格式：yyyy-MM-dd
+              dateTime:
+                type: string
+                description: 日程结束时间，格式为ISO-8601的date-time格式
+              timeZone:
+                type: string
+                description: 日程结束时间所属时区，必须和开始时间所属时区相同，tz database name格式
+          isAllDay:
+            type: boolean
+            description: 是否为全天日程;true:是;false:不是;
+          recurrence:
+            type: object
+            description: 日程循环规则
+            properties:
+              pattern:
+                type: object
+                description: 循环模式
+                properties:
+                  type:
+                    type: string
+                    description: 循环规则类型。daily：每interval天重复;weekly：每interval周的第daysOfWeek天重复;absoluteMonthly：每interval月的第dayOfMonth天重复;relativeMonthly：每interval月的第index周的第daysOfWeek天重复;absoluteYearly：每interval年重复
+                  dayOfMonth:
+                    type: integer
+                    description: 当type=absoluteMonthly时，用于指定是每个月的第几天
+                  daysOfWeek:
+                    type: string
+                    description: 英文小写单词指定星期几，如果有多个值逗号分割
+                  index:
+                    type: string
+                    description: 当type=relativeMonthly时，用于指定每月第几周;first/second/third/third/fourth/last; 其中last表示当月的最后一周。
+                  interval:
+                    type: integer
+                    description: 循环间隔，根据type不同单位不同。例如当type=daily时表示间隔N天，type=absoluteYearly则表示间隔N年。
+                  firstDayOfWeek:
+                    type: string
+                    description: 一周起始日，可取值包括：sunday、monday、tuesday、wednesday、thursday、friday、saturday。 默认值为“sunday”。
+              range:
+                type: object
+                description: 循环范围
+                properties:
+                  type:
+                    type: string
+                    description: 循环范围类型。noEnd：永不结束；endDate：循环至指定日期结束；numbered：循环指定次数后结束
+                  endDate:
+                    type: string
+                    description: 循环结束日期。
+                  numberOfOccurrences:
+                    type: integer
+                    description: 重复次数
+          attendees:
+            type: array
+            description: 日程参与人
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: 用户unionId
+                displayName:
+                  type: string
+                  description: 用户名
+                responseStatus:
+                  type: string
+                  description: 回复状态
+                self:
+                  type: boolean
+                  description: 是否是当前登陆用户;true：是; false：不是;
+                isOptional:
+                  type: boolean
+                  description: 是否为可选参与人; true：是;false：不是
+          organizer:
+            type: object
+            description: 日程组织人
+            properties:
+              id:
+                type: string
+                description: 用户unionId
+              displayName:
+                type: string
+                description: 用户名
+              responseStatus:
+                type: string
+                description: 回复状态
+              self:
+                type: boolean
+                description: 是否是当前登陆用户;true：是; false：不是;
+          location:
+            type: object
+            description: 日程地点
+            properties:
+              displayName:
+                type: string
+                description: 展示名称
+              meetingRooms:
+                type: array
+                description: 会议室列表
+                items:
+                  type: string
+                  description: 会议室
+          seriesMasterId:
+            type: string
+            description: 重复日程的主日程id，非重复日程为空。
+          createTime:
+            type: string
+            description: 创建时间
+          updateTime:
+            type: string
+            description: 更新时间
+          status:
+            type: string
+            description: 日程状态
+          onlineMeetingInfo:
+            type: object
+            description: 线上会议
+            properties:
+              type:
+                type: string
+                description: 线上会议类型，目前支持：dingtalk：钉钉视频会议
+              conferenceId:
+                type: string
+                description: 会议ID
+              url:
+                type: string
+                description: 参会的URL地址
+              extraInfo:
+                type: object
+                description: 其他扩展信息
+          reminders:
+            type: array
+            description: 日程提醒
+            items:
+              type: object
+              properties:
+                method:
+                  type: string
+                  description: 提醒方式
+                minutes:
+                  type: string
+                  description: 在日程开始前N分钟发出提醒
+          extendedProperties:
+            type: object
+            description: 日程扩展属性
+            properties:
+              sharedProperties:
+                type: object
+                description: 共享字段
+                properties:
+                  sourceOpenCid:
+                    type: string
+                    description: 当日程是由某个群内发起的时候，该字段表示日程发起的来源群
+                  belongCorpId:
+                    type: string
+                    description: 日程归属企业的corpId
+          meetingRooms:
+            type: array
+            description: 会议室列表
+            items:
+              type: object
+              properties:
+                roomId:
+                  type: string
+                  description: 会议室roomId
+                responseStatus:
+                  type: string
+                  description: 会议室响应状态; accepted:接受；tentative:审批中；declined:审批未通过
+                displayName:
+                  type: string
+                  description: 会议室名称
+          categories:
+            type: array
+            description: 日程类型
+            items:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  description: 日程类型名称
+          richTextDescription:
+            type: object
+            description: 富文本字段
+            properties:
+              text:
+                type: string
+                description: 富文本内容
+    addTodoRequest:
+      type: object
+      required:
+        - todo
+      properties:
+        todo:
+          type: string
+          description: 加入待办的列表
+    deleteTodoRequest:
+      type: object
+      required:
+        - todo_idx
+      properties:
+        todo_idx:
+          type: integer
+          description: 将要删除的待办id
