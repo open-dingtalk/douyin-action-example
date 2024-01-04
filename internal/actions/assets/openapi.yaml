@@ -75,9 +75,6 @@ components:
               diggCount:
                 type: integer
                 description: 点赞数
-              downloadCount:
-                type: integer
-                description: 下载数
               playCount:
                 type: integer
                 description: 播放数

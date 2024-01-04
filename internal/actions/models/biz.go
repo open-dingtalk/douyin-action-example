@@ -26,8 +26,6 @@ type VideoItem struct {
 	Title string `json:"title"`
 	// 点赞数
 	DiggCount int64 `json:"diggCount"`
-	// 下载数
-	DownloadCount int64 `json:"downloadCount"`
 	// 播放数，只有作者本人可见。公开视频设为私密后，播放数也会返回0
 	PlayCount int64 `json:"playCount"`
 	// 分享数
