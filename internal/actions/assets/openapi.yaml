@@ -81,9 +81,6 @@ components:
               shareCount:
                 type: integer
                 description: 分享数
-              forwardCount:
-                type: integer
-                description: 转发数
               commentCount:
                 type: integer
                 description: 评论数

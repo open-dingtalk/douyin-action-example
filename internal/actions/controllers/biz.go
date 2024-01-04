@@ -124,7 +124,7 @@ func (bc *BizController) GetVideoList(c *gin.Context) {
 	}
 
 	accessToken := getBearerToken(c.Request)
-	getVideoListUrlWithParam := generateGetVideoListUrl(accessToken, 0, 10)
+	getVideoListUrlWithParam := generateGetVideoListUrl(accessToken, 0, 5)
 
 	httpRequest, err := http.NewRequest("GET", getVideoListUrlWithParam, nil)
 	if err != nil {
@@ -160,7 +160,6 @@ func (bc *BizController) GetVideoList(c *gin.Context) {
 			getVideoListResponse := &models.GetVideoListResponse{}
 			videoList := respData["list"].([]interface{})
 			for _, rawVideo := range videoList {
-				// 类型断言，将interface{}转换为map[string]interface{}
 				video, ok := rawVideo.(map[string]interface{})
 				if !ok {
 					c.JSON(http.StatusInternalServerError, err)
@@ -174,15 +173,12 @@ func (bc *BizController) GetVideoList(c *gin.Context) {
 					statistics := video["statistics"].(map[string]interface{})
 					videoItem.DiggCount = int64(statistics["digg_count"].(float64))
 					videoItem.ShareCount = int64(statistics["share_count"].(float64))
-					videoItem.ForwardCount = int64(statistics["forward_count"].(float64))
 					videoItem.PlayCount = int64(statistics["play_count"].(float64))
 					videoItem.CommentCount = int64(statistics["comment_count"].(float64))
+					logger.Infof("videoItem=%+v", videoItem)
 					getVideoListResponse.Videos = append(getVideoListResponse.Videos, videoItem)
 				}
 			}
-
-			debugInfo, _ := json.Marshal(getVideoListResponse)
-			logger.Infof("status ok, response=%+v", debugInfo)
 			c.JSON(http.StatusOK, getVideoListResponse)
 			return
 		} else {

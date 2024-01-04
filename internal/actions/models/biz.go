@@ -30,8 +30,6 @@ type VideoItem struct {
 	PlayCount int64 `json:"playCount"`
 	// 分享数
 	ShareCount int64 `json:"shareCount"`
-	// 转发数
-	ForwardCount int64 `json:"forwardCount"`
 	// 评论数
 	CommentCount int64 `json:"commentCount"`
 }
