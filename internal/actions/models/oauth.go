@@ -6,10 +6,10 @@ package models
  **/
 
 type GetTokenRequest struct {
-	ClientID     string `json:"clientId"`
-	ClientSecret string `json:"clientSecret"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
 	Code         string `json:"code"`
-	GrantType    string `json:"grantType"`
+	GrantType    string `json:"grant_type"`
 }
 
 type DouYinGetTokenRequest struct {
