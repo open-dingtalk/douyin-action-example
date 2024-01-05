@@ -1,13 +1,11 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"github.com/pkg/errors"
-	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -35,47 +33,19 @@ func NewDouYinClient() (*DouYinClient, error) {
 	}, nil
 }
 
-func (c *DouYinClient) Post(ctx context.Context, url string, request interface{}, response interface{}) error {
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-	httpRequest, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-	httpRequest.Header.Set("Content-Type", "application/json; charset=UTF-8")
-
-	return c.Execute(ctx, httpRequest, response)
-}
-
-func (c *DouYinClient) Get(ctx context.Context, url string, response interface{}) error {
-	httpRequest, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return err
-	}
-	return c.Execute(ctx, httpRequest, response)
-
-}
-
-func (c *DouYinClient) Execute(ctx context.Context, request *http.Request, response interface{}) error {
-	httpResponse, err := c.httpClient.Do(request)
-	if err != nil {
-		return err
-	}
-	defer httpResponse.Body.Close()
-	body, err := io.ReadAll(httpResponse.Body)
-	if err != nil {
-		return err
+func GetBearerToken(r *http.Request) (string, error) {
+	// Get Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("no Authorization header")
 	}
 
-	if httpResponse.StatusCode != http.StatusOK {
-		// logger.Errorf(ctx, "status(%d) is not ok, url=%s, body(%s)", httpResponse.StatusCode, request.URL.String(), string(body))
-		return errors.Errorf("status(%d) is not ok, body(%s)", httpResponse.StatusCode, string(body))
-	}
-	if err := json.Unmarshal(body, response); err != nil {
-		return err
+	// Split the header value by space.
+	// Should be in the form of ["Bearer", "token"]
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return "", errors.New("invalid token format, not bearer")
 	}
 
-	return nil
+	return parts[1], nil
 }

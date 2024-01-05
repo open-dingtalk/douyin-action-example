@@ -10,25 +10,17 @@ import (
 	"github.com/chzealot/gobase/logger"
 	"github.com/chzealot/gobase/utils"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 )
-
-/**
- * @Author simu.nn
- * @Date   2024/1/3 5:47 PM
- **/
 
 const getUserInfoUrl string = "https://open.douyin.com/oauth/userinfo/"
 const getVideoListUrl string = "https://open.douyin.com/api/douyin/v1/video/video_list/"
 
 type BizController struct {
-	httpClient *http.Client
 }
 
 func NewBizController() *BizController {
@@ -36,53 +28,31 @@ func NewBizController() *BizController {
 }
 
 func (bc *BizController) UserInfo(c *gin.Context) {
-	dyClient, err := NewDouYinClient()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-
 	if conf.IsDebugMode {
 		utils.DumpHttpRequest(c.Request)
 	}
 
-	getUserInfoRequest := &models.GetUserInfoRequest{}
-	accessToken := getBearerToken(c.Request)
-	getUserInfoRequest.AccessToken = accessToken
-	getUserInfoRequest.OpenID, err = getOpenID(accessToken)
-	if err != nil {
-		wrappedErr := errors.Wrap(err, fmt.Sprintf("getOpenID failed, accessToken=%s", accessToken))
-		c.JSON(http.StatusInternalServerError, wrappedErr)
-		return
-	}
-
-	userInfoRequestData, err := json.Marshal(getUserInfoRequest)
+	getUserInfoRequest, err := bc.buildGetUserInfoRequest(c.Request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
 
-	httpRequest, err := http.NewRequest("POST", getUserInfoUrl, bytes.NewBuffer(userInfoRequestData))
+	response, err := bc.sendGetUserInfoRequest(getUserInfoRequest, getUserInfoUrl)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
-	httpRequest.Header.Set("Content-Type", "application/json")
+	defer response.Body.Close()
 
-	httpResponse, err := dyClient.httpClient.Do(httpRequest)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-	defer httpResponse.Body.Close()
-	body, err := io.ReadAll(httpResponse.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
 
 	douYinTokenResponse := make(map[string]interface{})
-	if httpResponse.StatusCode == http.StatusOK {
+	if response.StatusCode == http.StatusOK {
 		if err := json.Unmarshal(body, &douYinTokenResponse); err != nil {
 			c.JSON(http.StatusInternalServerError, err)
 			return
@@ -96,22 +66,65 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 			getUserInfoResponse.Nick = respData["nickname"].(string)
 			getUserInfoResponse.OpenID = respData["open_id"].(string)
 			getUserInfoResponse.UnionID = respData["union_id"].(string)
-			logger.Infof("get user info response: %+v", getUserInfoResponse)
+			logger.Infof("get user info succeed, response: %+v", getUserInfoResponse)
 			c.JSON(http.StatusOK, getUserInfoResponse)
 			return
 		} else {
-			getTokenError := &models.DouYinError{}
-			getTokenError.ErrorCode = errorCode
-			getTokenError.ErrorDescription = respData["description"].(string)
-			c.JSON(http.StatusBadRequest, getTokenError)
+			getUserInfoError := &models.ServiceError{}
+			getUserInfoError.ErrorCode = errorCode
+			getUserInfoError.ErrorDescription = respData["description"].(string)
+			logger.Infof("get user info returns error, response: %+v", getUserInfoError)
+			c.JSON(http.StatusBadRequest, getUserInfoError)
 			return
 		}
 	} else {
-		err = fmt.Errorf("httpResponse.StatusCode not ok, statusCode=%d", httpResponse.StatusCode)
-		logger.Errorf("get user info response error: %+v", err)
+		err = fmt.Errorf("httpResponse.StatusCode not ok, statusCode=%d", response.StatusCode)
+		logger.Errorf("get user info response not ok: %+v", err)
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
+}
+
+func (bc *BizController) buildGetUserInfoRequest(r *http.Request) (*models.GetUserInfoRequest, error) {
+	accessToken, err := GetBearerToken(r)
+	if err != nil {
+		return nil, err
+	}
+
+	openId, err := bc.getOpenID(accessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.GetUserInfoRequest{
+		AccessToken: accessToken,
+		OpenID:      openId,
+	}, nil
+}
+
+func (bc *BizController) sendGetUserInfoRequest(request *models.GetUserInfoRequest, url string) (*http.Response, error) {
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpRequest, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpRequest.Header.Set("Content-Type", "application/json")
+
+	dyClient, err := NewDouYinClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create douyin client: %w", err)
+	}
+
+	resp, err := dyClient.httpClient.Do(httpRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return resp, nil
 }
 
 func (bc *BizController) GetVideoList(c *gin.Context) {
@@ -121,8 +134,8 @@ func (bc *BizController) GetVideoList(c *gin.Context) {
 		return
 	}
 
-	accessToken := getBearerToken(c.Request)
-	getVideoListUrlWithParam := generateGetVideoListUrl(accessToken, 0, 5)
+	accessToken, _ := GetBearerToken(c.Request)
+	getVideoListUrlWithParam := bc.generateGetVideoListUrl(accessToken, 0, 5)
 
 	httpRequest, err := http.NewRequest("GET", getVideoListUrlWithParam, nil)
 	if err != nil {
@@ -180,7 +193,7 @@ func (bc *BizController) GetVideoList(c *gin.Context) {
 			c.JSON(http.StatusOK, getVideoListResponse)
 			return
 		} else {
-			getTokenError := &models.DouYinError{}
+			getTokenError := &models.ServiceError{}
 			getTokenError.ErrorCode = errorCode
 			getTokenError.ErrorDescription = respExtra["description"].(string)
 			c.JSON(http.StatusBadRequest, getTokenError)
@@ -192,27 +205,11 @@ func (bc *BizController) GetVideoList(c *gin.Context) {
 	}
 }
 
-func getBearerToken(r *http.Request) string {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		return ""
-	}
-
-	// Split the header value by space.
-	// Should be in the form of ["Bearer", "token"]
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		return ""
-	}
-
-	return parts[1]
-}
-
-func getOpenID(accessToken string) (string, error) {
+func (bc *BizController) getOpenID(accessToken string) (string, error) {
 	return storage.OpenIdService.GetOpenIdByAccessToken(accessToken)
 }
 
-func generateGetVideoListUrl(accessToken string, cursor int, count int) string {
+func (bc *BizController) generateGetVideoListUrl(accessToken string, cursor int, count int) string {
 	// Parse URL to make sure it is valid
 	parsedURL, err := url.Parse(getVideoListUrl)
 	if err != nil {
@@ -221,7 +218,7 @@ func generateGetVideoListUrl(accessToken string, cursor int, count int) string {
 
 	// Create URL object to add query
 	parameters := url.Values{}
-	openId, _ := getOpenID(accessToken)
+	openId, _ := bc.getOpenID(accessToken)
 	parameters.Add("open_id", openId)
 	parameters.Add("cursor", strconv.Itoa(cursor))
 	parameters.Add("count", strconv.Itoa(count))
