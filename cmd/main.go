@@ -10,7 +10,7 @@ func main() {
 	if err := logger.InitWithConfig(conf.AppConfig); err != nil {
 		panic(err)
 	}
-	logger.Infof("start DingTalk calendar ...")
+	logger.Infof("start DouYin standardised service ...")
 
 	server := actions.NewHttpServer()
 	if err := server.Run(":3021"); err != nil {

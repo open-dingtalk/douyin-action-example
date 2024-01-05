@@ -6,16 +6,17 @@ import (
 	"douyin-action-example/internal/actions/storage"
 	"douyin-action-example/internal/conf"
 	"encoding/json"
+	"fmt"
 	"github.com/chzealot/gobase/logger"
 	"github.com/chzealot/gobase/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 /**
@@ -27,7 +28,6 @@ const getUserInfoUrl string = "https://open.douyin.com/oauth/userinfo/"
 const getVideoListUrl string = "https://open.douyin.com/api/douyin/v1/video/video_list/"
 
 type BizController struct {
-	mu         sync.Mutex
 	httpClient *http.Client
 }
 
@@ -38,10 +38,10 @@ func NewBizController() *BizController {
 func (bc *BizController) UserInfo(c *gin.Context) {
 	dyClient, err := NewDouYinClient()
 	if err != nil {
-		logger.Errorf("NewDouYinClient failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
+
 	if conf.IsDebugMode {
 		utils.DumpHttpRequest(c.Request)
 	}
@@ -51,20 +51,19 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 	getUserInfoRequest.AccessToken = accessToken
 	getUserInfoRequest.OpenID, err = getOpenID(accessToken)
 	if err != nil {
-		logger.Errorf("getOpenID failed, err=%s, accessToken=%s", err.Error(), accessToken)
+		wrappedErr := errors.Wrap(err, fmt.Sprintf("getOpenID failed, accessToken=%s", accessToken))
+		c.JSON(http.StatusInternalServerError, wrappedErr)
+		return
+	}
+
+	userInfoRequestData, err := json.Marshal(getUserInfoRequest)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
 
-	jsonData, err := json.Marshal(getUserInfoRequest)
+	httpRequest, err := http.NewRequest("POST", getUserInfoUrl, bytes.NewBuffer(userInfoRequestData))
 	if err != nil {
-		logger.Errorf("json.Marshal(getUserInfoRequest) failed, err=%s", err.Error())
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-	httpRequest, err := http.NewRequest("POST", getUserInfoUrl, bytes.NewBuffer(jsonData))
-	if err != nil {
-		logger.Errorf("http.NewRequest failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
@@ -72,14 +71,12 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 
 	httpResponse, err := dyClient.httpClient.Do(httpRequest)
 	if err != nil {
-		logger.Errorf("dyClient.httpClient.Do failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
 	defer httpResponse.Body.Close()
 	body, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		logger.Errorf("io.ReadAll failed, err=%s", err.Error())
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
@@ -87,7 +84,6 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 	douYinTokenResponse := make(map[string]interface{})
 	if httpResponse.StatusCode == http.StatusOK {
 		if err := json.Unmarshal(body, &douYinTokenResponse); err != nil {
-			logger.Errorf("json.Unmarshal failed, err=%s", err.Error())
 			c.JSON(http.StatusInternalServerError, err)
 			return
 		}
@@ -100,7 +96,7 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 			getUserInfoResponse.Nick = respData["nickname"].(string)
 			getUserInfoResponse.OpenID = respData["open_id"].(string)
 			getUserInfoResponse.UnionID = respData["union_id"].(string)
-			logger.Infof("get user info: %+v", getUserInfoResponse)
+			logger.Infof("get user info response: %+v", getUserInfoResponse)
 			c.JSON(http.StatusOK, getUserInfoResponse)
 			return
 		} else {
@@ -108,9 +104,11 @@ func (bc *BizController) UserInfo(c *gin.Context) {
 			getTokenError.ErrorCode = errorCode
 			getTokenError.ErrorDescription = respData["description"].(string)
 			c.JSON(http.StatusBadRequest, getTokenError)
+			return
 		}
 	} else {
-		logger.Errorf("httpResponse.StatusCode not ok")
+		err = fmt.Errorf("httpResponse.StatusCode not ok, statusCode=%d", httpResponse.StatusCode)
+		logger.Errorf("get user info response error: %+v", err)
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
@@ -186,16 +184,12 @@ func (bc *BizController) GetVideoList(c *gin.Context) {
 			getTokenError.ErrorCode = errorCode
 			getTokenError.ErrorDescription = respExtra["description"].(string)
 			c.JSON(http.StatusBadRequest, getTokenError)
+			return
 		}
-
 	} else {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
-}
-
-func (bc *BizController) GetVideoBase(c *gin.Context) {
-
 }
 
 func getBearerToken(r *http.Request) string {
@@ -219,20 +213,20 @@ func getOpenID(accessToken string) (string, error) {
 }
 
 func generateGetVideoListUrl(accessToken string, cursor int, count int) string {
-	// 解析URL，并确保没有错误发生
+	// Parse URL to make sure it is valid
 	parsedURL, err := url.Parse(getVideoListUrl)
 	if err != nil {
 		log.Fatalf("Error parsing URL: %v", err)
 	}
 
-	// 创建一个URL值对象，用于添加query参数
+	// Create URL object to add query
 	parameters := url.Values{}
 	openId, _ := getOpenID(accessToken)
 	parameters.Add("open_id", openId)
 	parameters.Add("cursor", strconv.Itoa(cursor))
 	parameters.Add("count", strconv.Itoa(count))
 
-	// 将query参数添加到URL中
+	// Add query to url
 	parsedURL.RawQuery = parameters.Encode()
 	return parsedURL.String()
 }

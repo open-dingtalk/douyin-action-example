@@ -32,16 +32,6 @@ func (s *HttpServer) Run(address string) error {
 	bc := controllers.NewBizController()
 	r.GET("/userInfo", bc.UserInfo)
 	r.GET("/videoList", bc.GetVideoList)
-	r.GET("/videoBase", bc.GetVideoBase)
-
-	//ph := controllers.NewProfileHandler()
-	//r.GET("/profile/:unionId", ph.GetProfile)
-	//
-	//ch := controllers.NewCalendarHandler()
-	//r.GET("/calendar/events", ch.GetEvents)
-	//r.GET("/calendars", ch.GetCalendars)
-	//
-	//r.NoRoute(controllers.NewNotFoundHandler().Process)
 
 	server := &http.Server{Addr: address, Handler: r}
 	ln, err := net.Listen("tcp4", address)
