@@ -17,6 +17,13 @@ type GetUserInfoResponse struct {
 	UnionID   string `json:"unionId"`
 }
 
+type GetVideoListRequest struct {
+	AccessToken string `json:"access_token"`
+	OpenID      string `json:"open_id"`
+	Cursor      int    `json:"cursor"`
+	Count       int    `json:"count"`
+}
+
 type GetVideoListResponse struct {
 	Videos []*VideoItem `json:"videos"`
 }
