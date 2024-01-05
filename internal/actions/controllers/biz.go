@@ -18,6 +18,7 @@ import (
 
 const getUserInfoUrl string = "https://open.douyin.com/oauth/userinfo/"
 const getVideoListUrl string = "https://open.douyin.com/api/douyin/v1/video/video_list/"
+const getFansUrl string = "https://open.douyin.com/api/douyin/v1/user/fans_data/"
 
 type BizController struct {
 }
@@ -260,4 +261,93 @@ func (bc *BizController) sendGetVideoListRequest(request *models.GetVideoListReq
 	}
 
 	return resp, nil
+}
+
+func (bc *BizController) generateGetFansUrl(request *models.GetFansDataRequest, getFansDataUrl string) (string, error) {
+	parsedURL, err := url.Parse(getFansDataUrl)
+	if err != nil {
+		return "", err
+	}
+
+	parameters := url.Values{}
+	parameters.Add("open_id", request.OpenID)
+
+	parsedURL.RawQuery = parameters.Encode()
+	return parsedURL.String(), nil
+}
+
+func (bc *BizController) buildGetFansDataRequest(r *http.Request) (*models.GetFansDataRequest, error) {
+	accessToken, err := GetBearerToken(r)
+	if err != nil {
+		return nil, err
+	}
+
+	openId, err := bc.getOpenID(accessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.GetFansDataRequest{
+		AccessToken: accessToken,
+		OpenID:      openId,
+	}, nil
+}
+
+func (bc *BizController) GetFansData(c *gin.Context) {
+	getFansDataRequest, err := bc.buildGetFansDataRequest(c.Request)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	getFansUrlWithParam, err := bc.generateGetFansUrl(getFansDataRequest, getFansUrl)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	httpRequest, err := http.NewRequest("GET", getFansUrlWithParam, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	//httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("access-token", getFansDataRequest.AccessToken)
+
+	dyClient, err := NewDouYinClient()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	httpResponse, err := dyClient.httpClient.Do(httpRequest)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	defer httpResponse.Body.Close()
+	body, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	fansResponse := make(map[string]interface{})
+	if httpResponse.StatusCode == http.StatusOK {
+		if err := json.Unmarshal(body, &fansResponse); err != nil {
+			logger.Errorf("json.Unmarshal failed, err=%s", err.Error())
+			c.JSON(http.StatusInternalServerError, err)
+			return
+		}
+		logger.Infof("fansResponse=%+v", fansResponse)
+
+		response := &models.GetFansDataResponse{}
+		response.Item = "加班"
+		response.Value = 100
+		c.JSON(http.StatusOK, response)
+	} else {
+		logger.Errorf("httpResponse.StatusCode not ok")
+		c.JSON(http.StatusInternalServerError, err)
+		return
+	}
 }

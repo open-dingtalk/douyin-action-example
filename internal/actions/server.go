@@ -32,6 +32,7 @@ func (s *HttpServer) Run(address string) error {
 	bc := controllers.NewBizController()
 	r.GET("/userInfo", bc.UserInfo)
 	r.GET("/videoList", bc.GetVideoList)
+	r.GET("/fansData", bc.GetFansData)
 
 	server := &http.Server{Addr: address, Handler: r}
 	ln, err := net.Listen("tcp4", address)

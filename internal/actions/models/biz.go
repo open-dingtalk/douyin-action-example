@@ -40,3 +40,15 @@ type VideoItem struct {
 	// 评论数
 	CommentCount int64 `json:"commentCount"`
 }
+
+type GetFansDataRequest struct {
+	AccessToken string `json:"access_token"`
+	OpenID      string `json:"open_id"`
+}
+
+type GetFansDataResponse struct {
+	// 分类
+	Item string `json:"item"`
+	// 数值
+	Value int64 `json:"value"`
+}

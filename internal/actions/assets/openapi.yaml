@@ -28,8 +28,8 @@ paths:
   /videoList:
     get:
       summary: 查看视频列表
-      description: 查看视频列表，查看视频数据
-      operationId: GetVideoListResponse
+      description: 查看视频列表
+      operationId: GetVideoList
       parameters:
         - name: openId
           in: query
@@ -44,6 +44,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetVideoListResponse'
+  /fansData:
+    get:
+      summary: 查看粉丝画像
+      description: 查看粉丝画像
+      operationId: GetFansData
+      parameters:
+        - name: openId
+          in: query
+          description: 用户ID
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetFansDataResponse'
 components:
   schemas:
     GetUserInfoResponse:
@@ -84,3 +103,12 @@ components:
               commentCount:
                 type: integer
                 description: 评论数
+    GetFansDataResponse:
+      type: object
+      properties:
+        item:
+          type: string
+          description: 兴趣
+        value:
+          type: integer
+          description: 数值
