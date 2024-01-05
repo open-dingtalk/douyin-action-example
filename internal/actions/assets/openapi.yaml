@@ -28,7 +28,7 @@ paths:
   /videoList:
     get:
       summary: 查看视频列表
-      description: 查看视频列表
+      description: 查看视频列表，查看视频数据
       operationId: GetVideoListResponse
       parameters:
         - name: openId
